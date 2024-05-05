@@ -2,6 +2,7 @@ package aiss.grupo6.vimeoMiner.controller;
 
 import aiss.grupo6.vimeoMiner.database.*;
 import aiss.grupo6.vimeoMiner.exception.ChannelNotFoundException;
+import aiss.grupo6.vimeoMiner.exception.InternalErrorException;
 import aiss.grupo6.vimeoMiner.model.*;
 import aiss.grupo6.vimeoMiner.repository.ChannelRepository;
 import aiss.grupo6.vimeoMiner.service.CaptionService;
@@ -9,15 +10,17 @@ import aiss.grupo6.vimeoMiner.service.ChannelService;
 import aiss.grupo6.vimeoMiner.service.CommentService;
 import aiss.grupo6.vimeoMiner.service.VideoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/vimeoMiner")
+@RequestMapping("/vimeominer")
 public class ChannelController {
 
     @Autowired
@@ -35,9 +38,15 @@ public class ChannelController {
     @Autowired
     private CommentService commentService;
 
-    //GET http://localhost:8081/vimeoMiner/{id}
+    @Value( "${message.channelNotFound}" )
+    private String channelError;
+
+    @Value( "${message.internalError}" )
+    private String internalError;
+
+    //GET http://localhost:8081/vimeominer/{id}
     @GetMapping("/{id}")
-    public VMChannel findChannel(@PathVariable String id, @RequestParam(required = false) Integer maxVideos, @RequestParam(required = false) Integer maxComments) throws ChannelNotFoundException {
+    public VMChannel findChannel(@PathVariable String id, @RequestParam(required = false) Integer maxVideos, @RequestParam(required = false) Integer maxComments) throws Exception {
         try {
             VMChannel result = this.channelService.findChannelById(id);
             List<VMVideo> videosCanal = this.videoService.indexVideosById(id, maxVideos);
@@ -51,17 +60,24 @@ public class ChannelController {
 
             result.setVideos(videosCanal);
             return result;
-        } catch(RestClientException e) {
-            throw new ChannelNotFoundException();
+        } catch(HttpClientErrorException e) {
+            if(e.getStatusCode().equals(HttpStatus.NOT_FOUND)){
+                throw new ChannelNotFoundException(channelError);
+            }else{
+                throw new InternalErrorException(internalError);
+            }
+
+        } catch (RuntimeException e) {
+            throw new InternalErrorException(internalError);
         }
 
 
     }
 
-    //POST http://localhost:8081/vimeoMiner/{id}
+    //POST http://localhost:8081/vimeominer/{id}
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/{id}")
-    public VMChannel createChannel(@PathVariable String id, @RequestParam(required = false) Integer maxVideos, @RequestParam(required = false) Integer maxComments) throws ChannelNotFoundException{
+    public VMChannel createChannel(@PathVariable String id, @RequestParam(required = false) Integer maxVideos, @RequestParam(required = false) Integer maxComments) throws Exception{
         VMChannel canal = findChannel(id, maxVideos, maxComments);
         canal = channelRepository.save(canal);
         return canal;
