@@ -1,13 +1,24 @@
 package aiss.grupo6.vimeoMiner;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import aiss.grupo6.vimeoMiner.service.CaptionServiceTest;
+import aiss.grupo6.vimeoMiner.service.ChannelServiceTest;
+import aiss.grupo6.vimeoMiner.service.CommentServiceTest;
+import aiss.grupo6.vimeoMiner.service.VideoServiceTest;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
-@SpringBootTest
-class VimeoMinerApplicationTests {
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+	ChannelServiceTest.class,
+	VideoServiceTest.class,
+	CommentServiceTest.class,
+	CaptionServiceTest.class
+})
+public class VimeoMinerApplicationTests {
 
 	@Test
-	void contextLoads() {
+	public void contextLoads() {
 	}
 
 }
