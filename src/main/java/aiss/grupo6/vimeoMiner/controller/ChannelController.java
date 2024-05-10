@@ -3,8 +3,6 @@ package aiss.grupo6.vimeoMiner.controller;
 import aiss.grupo6.vimeoMiner.database.*;
 import aiss.grupo6.vimeoMiner.exception.ChannelNotFoundException;
 import aiss.grupo6.vimeoMiner.exception.InternalErrorException;
-import aiss.grupo6.vimeoMiner.model.*;
-import aiss.grupo6.vimeoMiner.repository.ChannelRepository;
 import aiss.grupo6.vimeoMiner.service.CaptionService;
 import aiss.grupo6.vimeoMiner.service.ChannelService;
 import aiss.grupo6.vimeoMiner.service.CommentService;
@@ -18,10 +16,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +37,7 @@ import java.util.List;
 public class ChannelController {
 
     @Autowired
-    private ChannelRepository channelRepository;
+    RestTemplate restTemplate;
 
     @Autowired
     private ChannelService channelService;
@@ -54,6 +56,9 @@ public class ChannelController {
 
     @Value( "${message.internalError}" )
     private String internalError;
+
+    @Value( "${videominer.uri}" )
+    private String videominerUri;
 
     //GET http://localhost:8081/vimeominer/{id}
     @Operation(
@@ -117,7 +122,20 @@ public class ChannelController {
                                    @Parameter(description = "Maximum number of videos to get from the channel") @RequestParam(required = false) Integer maxVideos,
                                    @Parameter(description = "Maximum number of comments to get from the channel") @RequestParam(required = false) Integer maxComments) throws Exception{
         VMChannel canal = findChannel(id, maxVideos, maxComments);
-        canal = channelRepository.save(canal);
+        try {
+            HttpEntity<VMChannel> request = new HttpEntity<>(canal);
+            ResponseEntity<VMChannel> response = restTemplate.exchange(videominerUri, HttpMethod.POST, request, VMChannel.class);
+            canal = response.getBody();
+        } catch(HttpClientErrorException e) {
+            if(e.getStatusCode().equals(HttpStatus.NOT_FOUND)){
+                throw new ChannelNotFoundException(channelError);
+            }else{
+                throw new InternalErrorException(internalError);
+            }
+
+        } catch (RuntimeException e) {
+            throw new InternalErrorException(internalError);
+        }
         return canal;
     }
 
